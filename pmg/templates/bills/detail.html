@@ -36,6 +36,22 @@
 </ul>
 {% endif %}
 
+{% if bill.bill_files %}
+<ul class="list-inline bill-versions">
+  <li><h3>Supporting Documents:</h3></li>
+  {% for file in bill.bill_files %}
+  <li>
+    <a href="{{ file.file.url }}" target="_blank">
+      <span class="label label-info" title="{{ file.file.title }}">
+        <i class="fa fa-file-text"></i> {{ file.file.title }}
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+
 {% if bill.status %}
   {% if bill.status.name in ["enacted", "president", "ncop", "na", "returned-to-na", "introduced"] -%}
     <div class="bill-status-container">
@@ -152,13 +168,13 @@
     {% for version in bill.versions %}
     <div role="tabpanel" class="tab-pane {% if loop.first %}active{% endif %}" id="bill-version-{{ version.id }}" data-url="{{ version.file.url }}">
       <div class="clearfix">
-        <a href="{{ version.file.url }}" class="btn btn-default pull-right"><i class="fa fa-file-text"></i> Download ({{ version.file.file_bytes | filesizeformat }})</a>
+        <a href="{{ version.file.url }}" class="btn btn-default pull-right"><i class="fa fa-file-text"></i> Download{% if (version.file.file_bytes) %} ({{ (version.file.file_bytes | filesizeformat) }}) {% endif %}</a>
         <h4>{{ version.title }}</h4>
       </div>
 
       {% if version.file.file_mime == "application/pdf" %}
         <div class="bill-version-wrapper">
-          <button class="btn btn-primary load-pdf">Show PDF ({{ version.file.file_bytes | filesizeformat }})</button>
+          <button class="btn btn-primary load-pdf">Show PDF{% if (version.file.file_bytes) %} ({{ (version.file.file_bytes | filesizeformat) }}){% endif %}</button>
         </div>
       {% else %}
         <p class="alert alert-info"><i>A preview of this file is not available. Please download it instead.</i></p>
@@ -168,6 +184,8 @@
   </div>
 </div>
 {% endif %}
+
+
 
 {% endblock %}
 

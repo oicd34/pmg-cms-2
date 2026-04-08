@@ -25,9 +25,9 @@ from wtforms.validators import data_required
 from sqlalchemy import func
 from sqlalchemy.sql.expression import or_, and_
 from sqlalchemy import exc
-from jinja2 import Markup
+from markupsafe import Markup
 import humanize
-import psycopg2
+import pytz
 import flask_wtf
 
 from pmg import app, db
@@ -40,9 +40,9 @@ from .rbac import RBACMixin
 from .reports import ReportView
 from . import widgets
 
-logger = logging.getLogger(__name__)
+import warnings
 
-SAST = psycopg2.tz.FixedOffsetTimezone(offset=120, name=None)
+logger = logging.getLogger(__name__)
 
 
 def strip_filter(value):
@@ -54,7 +54,7 @@ def strip_filter(value):
 # Our base form extends flask_wtf.Form to get CSRF support,
 # and adds the _obj property required by Flask Admin
 class BaseForm(flask_wtf.Form):
-    def __init__(self, formdata=None, obj=None, prefix=u"", **kwargs):
+    def __init__(self, formdata=None, obj=None, prefix="", **kwargs):
         self._obj = obj
         super(BaseForm, self).__init__(
             formdata=formdata, obj=obj, prefix=prefix, **kwargs
@@ -156,9 +156,9 @@ class UsageReportView(RBACMixin, BaseView):
         builder = XLSXBuilder()
         xlsx = builder.from_orgs(users)
         resp = make_response(xlsx)
-        resp.headers[
-            "Content-Type"
-        ] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        resp.headers["Content-Type"] = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         resp.headers["Content-Disposition"] = "attachment;filename=" + filename
         return resp
 
@@ -193,7 +193,7 @@ class MyModelView(RBACMixin, ModelView):
         return None
 
     def alert_url(self, model):
-        """ If we support sending an email alert about this model, what's the URL? """
+        """If we support sending an email alert about this model, what's the URL?"""
         if model.id and hasattr(model, "alert_template"):
             template = model.alert_template
             if template:
@@ -210,8 +210,7 @@ class MyModelView(RBACMixin, ModelView):
         pass
 
     def get_export_columns(self):
-        """ Export all columns by default.
-        """
+        """Export all columns by default."""
         return self.get_column_names(
             only_columns=self.scaffold_list_columns(),
             excluded_columns=self.column_export_exclude_list,
@@ -321,7 +320,9 @@ class UserView(MyModelView):
             "query_factory": Committee.premium_for_select,
             "widget": widgets.CheckboxSelectWidget(multiple=True),
         },
-        "confirmed_at": {"widget": wtforms_widgets.TextInput(),},
+        "confirmed_at": {
+            "widget": wtforms_widgets.TextInput(),
+        },
     }
     form_widget_args = {
         "confirmed_at": {"readonly": True},
@@ -451,7 +452,9 @@ class CommitteeView(MyModelView):
     )
     column_default_sort = (Committee.name, False)
     column_searchable_list = ("name",)
-    column_formatters = dict(memberships=macro("render_membership_count"),)
+    column_formatters = dict(
+        memberships=macro("render_membership_count"),
+    )
     form_columns = (
         "name",
         "ad_hoc",
@@ -494,7 +497,7 @@ class CommitteeView(MyModelView):
 
 
 class ViewWithFiles:
-    """ Mixin to pre-fill inline file forms. """
+    """Mixin to pre-fill inline file forms."""
 
     form_args = {
         "files": {"widget": widgets.InlineFileWidget()},
@@ -507,7 +510,7 @@ class ViewWithFiles:
 
 
 class InlineFile(InlineFormAdmin):
-    """ Inline file admin for all views that allow file attachments.
+    """Inline file admin for all views that allow file attachments.
     It allows the user to choose an existing file to link as
     an attachment, or upload a new one. It also allows the user
     to edit the title of an already-attached file.
@@ -520,7 +523,12 @@ class InlineFile(InlineFormAdmin):
     column_labels = {
         "file": "Existing file",
     }
-    form_ajax_refs = {"file": {"fields": ("title", "file_path"), "page_size": 10,}}
+    form_ajax_refs = {
+        "file": {
+            "fields": ("title", "file_path"),
+            "page_size": 10,
+        }
+    }
 
     def postprocess_form(self, form_class):
         # add a field for handling the file upload
@@ -545,12 +553,9 @@ class EventView(ViewWithFiles, MyModelView):
 
     form_excluded_columns = ("type",)
     column_exclude_list = ("type",)
-    column_formatters = {"date": lambda v, c, model, n: model.date.astimezone(SAST)}
 
     def on_form_prefill(self, form, id):
         super().on_form_prefill(form, id)
-        # Display date in South African time
-        form.date.data = form.date.object_data.astimezone(SAST)
 
     def __init__(self, model, session, **kwargs):
         self.type = kwargs.pop("type")
@@ -560,9 +565,6 @@ class EventView(ViewWithFiles, MyModelView):
         if is_created:
             # set some default values when creating a new record
             model.type = self.type
-        # make sure the new date is timezone aware
-        if model.date:
-            model.date = model.date.replace(tzinfo=SAST)
 
         model.autolink_bills()
 
@@ -591,9 +593,9 @@ class AttendanceMemberAjaxModelLoader(QueryAjaxModelLoader):
             return None
 
         if model.house:
-            model_unicode = u"%s (%s)" % (model.name, model.house.name)
+            model_unicode = "%s (%s)" % (model.name, model.house.name)
         else:
-            model_unicode = u"%s" % model.name
+            model_unicode = "%s" % model.name
         return (getattr(model, self.pk), model_unicode)
 
     def get_list(self, term, offset=0, limit=DEFAULT_PAGE_SIZE):
@@ -601,7 +603,7 @@ class AttendanceMemberAjaxModelLoader(QueryAjaxModelLoader):
         # Only show currently active members
         query = query.filter(Member.current == True)
 
-        filters = (field.ilike(u"%%%s%%" % term) for field in self._cached_fields)
+        filters = (field.ilike("%%%s%%" % term) for field in self._cached_fields)
         query = query.filter(or_(*filters))
 
         if self.order_by:
@@ -644,6 +646,7 @@ class CommitteeMeetingView(EventView):
     column_list = ("date", "title", "committee", "featured")
     column_labels = {
         "committee": "Committee",
+        "linked_petitions": "Petitions"
     }
     column_sortable_list = (
         "date",
@@ -661,11 +664,18 @@ class CommitteeMeetingView(EventView):
         "featured",
         "public_participation",
         "bills",
+        "linked_petitions", 
         "summary",
         "body",
         "files",
         rules.FieldSet(
-            ["actual_start_time", "actual_end_time", "attendance"],
+            [
+                "actual_start_time",
+                "actual_end_time",
+                "scheduled_start_time",
+                "scheduled_end_time",
+                "attendance",
+            ],
             "Member Attendance Record",
         ),
     )
@@ -679,18 +689,14 @@ class CommitteeMeetingView(EventView):
         "body": {"class": "pmg_ckeditor"},
         "summary": {"class": "pmg_ckeditor"},
     }
-    form_ajax_refs = {"bills": {"fields": ("title",), "page_size": 50}}
+    form_ajax_refs = {
+        "bills": {"fields": ("title",), "page_size": 50},
+        "linked_petitions": {"fields": ("title",), "page_size": 50}  # Changed name here too
+    }
     inline_models = [
         InlineFile(EventFile),
         InlineCommitteeMeetingAttendance(CommitteeMeetingAttendance),
     ]
-
-    def on_model_change(self, form, model, is_created):
-        super(CommitteeMeetingView, self).on_model_change(form, model, is_created)
-        # make sure the new times are timezone aware
-        for attr in ["actual_start_time", "actual_end_time"]:
-            if getattr(model, attr):
-                setattr(model, attr, getattr(model, attr).replace(tzinfo=SAST))
 
 
 class HansardView(EventView):
@@ -699,6 +705,9 @@ class HansardView(EventView):
         "title",
         "date",
     )
+    column_labels = {
+        "linked_petitions": "Petitions"
+    }
     column_sortable_list = (
         "title",
         "house",
@@ -711,6 +720,7 @@ class HansardView(EventView):
         "house",
         "title",
         "bills",
+        "linked_petitions",
         "body",
         "files",
     )
@@ -720,7 +730,10 @@ class HansardView(EventView):
     form_widget_args = {
         "body": {"class": "pmg_ckeditor"},
     }
-    form_ajax_refs = {"bills": {"fields": ("title",), "page_size": 50}}
+    form_ajax_refs = {
+        "bills": {"fields": ("title",), "page_size": 50},
+        "linked_petitions": {"fields": ("title",), "page_size": 50}
+    }
     inline_models = [InlineFile(EventFile)]
 
 
@@ -845,8 +858,7 @@ class MemberView(MyModelView):
 
     @expose("/attendance/")
     def attendance(self):
-        """
-        """
+        """ """
         mem_id = request.args.get("id")
         url = "/admin/committeemeetingattendance/?member_id={0}".format(mem_id)
         return redirect(url)
@@ -881,7 +893,10 @@ class CommitteeMeetingAttendanceView(MyModelView):
     column_formatters = {
         "meeting.title": lambda v, c, m, n: Markup(
             "<a href='%s'>%s</a>"
-            % (url_for("committee_meeting", event_id=m.meeting_id), m.meeting.title,),
+            % (
+                url_for("committee_meeting", event_id=m.meeting_id),
+                m.meeting.title,
+            ),
         ),
         "meeting.date": lambda v, c, m, n: m.meeting.date.date().isoformat(),
     }
@@ -950,7 +965,10 @@ class CommitteeQuestionView(MyModelView):
         "answer": {"class": "pmg_ckeditor"},
     }
     form_ajax_refs = {
-        "source_file": {"fields": ("title", "file_path"), "page_size": 10,},
+        "source_file": {
+            "fields": ("title", "file_path"),
+            "page_size": 10,
+        },
         "asked_by_member": {"fields": ("name",), "page_size": 25},
     }
     inline_models = [InlineFile(CommitteeQuestionFile)]
@@ -1132,6 +1150,7 @@ class EventTypeSelectField(fields.SelectField):
             ("bill-signed", "Bill signed"),
             ("bill-enacted", "Bill enacted"),
             ("bill-act-commenced", "Act commenced"),
+            ("bill-concourt", "Before Constitutional Court")
         ]
 
     def populate_obj(self, obj, name):
@@ -1162,7 +1181,7 @@ class InlineBillEventsForm(InlineFormAdmin):
         "The NA granted permission",
         "The NCOP granted permission",
         "Bill lapsed",
-        "Bill withdrawn"
+        "Bill withdrawn",
     ]
     form_columns = (
         "id",
@@ -1180,17 +1199,20 @@ class InlineBillEventsForm(InlineFormAdmin):
             '<div class="help-event-title-content">When event type is "Bill passed", '
             'event title must be one of: <ul>%s</ul>When event type is "Bill updated", '
             "event title must be one of: <ul>%s</ul></div></div>"
-            % ("".join(("<li>%s</li>" % title for title in ALLOWED_BILL_PASSED_TITLES)), "".join(("<li>%s</li>" % title for title in ALLOWED_BILL_UPDATED_TITLES)))
+            % (
+                "".join(
+                    ("<li>%s</li>" % title for title in ALLOWED_BILL_PASSED_TITLES)
+                ),
+                "".join(
+                    ("<li>%s</li>" % title for title in ALLOWED_BILL_UPDATED_TITLES)
+                ),
+            )
         },
     }
 
     form_ajax_refs = {
         "member": {"fields": ("name",), "page_size": 25},
     }
-
-    def on_model_change(self, form, model):
-        # make sure the new date is timezone aware
-        model.date = model.date.replace(tzinfo=SAST)
 
 
 class InlineBillVersionForm(InlineFormAdmin):
@@ -1223,7 +1245,7 @@ class BillHouseAjaxModelLoader(QueryAjaxModelLoader):
     def get_list(self, term, offset=0, limit=DEFAULT_PAGE_SIZE):
         query = self.session.query(self.model)
 
-        filters = list((field.ilike(u"%%%s%%" % term) for field in self._cached_fields))
+        filters = list((field.ilike("%%%s%%" % term) for field in self._cached_fields))
         query = query.filter(or_(*filters))
         query = query.filter(and_(House.sphere == "national"))
 
@@ -1231,6 +1253,20 @@ class BillHouseAjaxModelLoader(QueryAjaxModelLoader):
             query = query.order_by(self.order_by)
 
         return query.offset(offset).limit(limit).all()
+
+class InlineBillFileForm(InlineFormAdmin):
+    
+    form_columns = (
+        "id",
+        "file",
+    )
+    form_ajax_refs = {
+        "file": {
+            "fields": ("title", "file_path"),
+            "page_size": 10,
+            "placeholder": 'Select a File',
+        },
+    }
 
 
 class BillsView(MyModelView):
@@ -1261,15 +1297,17 @@ class BillsView(MyModelView):
         "date_of_assent",
         "effective_date",
         "act_name",
-        "versions",
+        "versions"
     )
     column_default_sort = ("year", True)
     column_searchable_list = ("title",)
     inline_models = [
         InlineBillEventsForm(Event),
         InlineBillVersionForm(BillVersion),
+        InlineBillFileForm(BillFile),
     ]
     form_args = {
+        
         "events": {"widget": widgets.InlineBillEventsWidget()},
     }
 
@@ -1282,9 +1320,7 @@ class MinisterView(MyModelView):
 
 
 class FeaturedContentView(MyModelView):
-    def on_model_change(self, form, model, is_created):
-        # make sure the new date is timezone aware
-        model.start_date = model.start_date.replace(tzinfo=SAST)
+    column_list = ("title",)
 
 
 class FileView(MyModelView):
@@ -1293,9 +1329,11 @@ class FileView(MyModelView):
     column_default_sort = "file_path"
     column_labels = {"file_bytes": "Size"}
     column_formatters = {
-        "file_bytes": lambda v, c, m, n: "-"
-        if m.file_bytes is None
-        else Markup("<nobr>%s</nobr>" % humanize.naturalsize(m.file_bytes)),
+        "file_bytes": lambda v, c, m, n: (
+            "-"
+            if m.file_bytes is None
+            else Markup("<nobr>%s</nobr>" % humanize.naturalsize(m.file_bytes))
+        ),
     }
 
     class SizeRule(rules.BaseRule):
@@ -1394,11 +1432,6 @@ class PageView(ViewWithFiles, MyModelView):
         super(PageView, self).on_form_prefill(form, id)
         form.path.data = "/page/%s" % form.slug.data
 
-    def on_model_change(self, form, model, is_created):
-        # make sure the new date is timezone aware
-        if model.date:
-            model.date = model.date.replace(tzinfo=SAST)
-
 
 class PostView(ViewWithFiles, MyModelView):
     column_list = ("slug", "title", "date")
@@ -1428,13 +1461,56 @@ class PostView(ViewWithFiles, MyModelView):
         super(PostView, self).on_form_prefill(form, id)
         form.path.data = "/blog/%s" % form.slug.data
 
-    def on_model_change(self, form, model, is_created):
-        # make sure the new date is timezone aware
-        if model.date:
-            model.date = model.date.replace(tzinfo=SAST)
 
+class PetitionView(MyModelView):
+    form_columns = (
+        "title",
+        "issue",
+        "description",
+        "petitioner",
+        "house",
+        "date",
+        "committees", 
+        "hansard",
+        "report",
+        "status"
+    )
+    
+    form_ajax_refs = {
+        "status": {
+            "fields": ("name", "description"),
+            "page_size": 25,
+        },
+        "report": {
+            "fields": ("title", "file_path"),
+            "page_size": 20,
+            "placeholder": "Search for a file..."
+        },
+        "hansard": {
+            "fields": ("title", "date"),
+            "page_size": 20,
+            "placeholder": "Search for a hansard..."
+        }
+    }
+    
+    column_list = (
+        "title",
+        "date", 
+        "house",
+        "status"
+    )
+    
+    column_formatters = {
+        "committees": lambda v, c, m, n: ", ".join([committee.name for committee in m.committees])
+    }
 
-# initialise admin instance
+class PetitionStatusView(MyModelView):
+    column_default_sort = "name"
+    column_list = ("name", "description")
+    form_columns = column_list
+    edit_modal = True
+    create_modal = True
+
 admin = Admin(
     app,
     name="PMG-CMS",
@@ -1443,240 +1519,270 @@ admin = Admin(
     template_mode="bootstrap3",
 )
 
-# ---------------------------------------------------------------------------------
-# Users
-admin.add_view(
-    UserView(User, db.session, name="Users", endpoint="user", category="Users")
-)
-admin.add_view(
-    OrganisationView(
-        Organisation,
-        db.session,
-        name="Organisations",
-        endpoint="organisation",
-        category="Users",
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', 'Fields missing from ruleset', UserWarning)
+    # ---------------------------------------------------------------------------------
+    # Users
+    admin.add_view(
+        UserView(User, db.session, name="Users", endpoint="user", category="Users")
     )
-)
+    admin.add_view(
+        OrganisationView(
+            Organisation,
+            db.session,
+            name="Organisations",
+            endpoint="organisation",
+            category="Users",
+        )
+    )
 
-# ---------------------------------------------------------------------------------
-# Committees
-admin.add_view(
-    CommitteeView(
-        Committee,
-        db.session,
-        name="Committees",
-        endpoint="committee",
-        category="Committees",
+    # ---------------------------------------------------------------------------------
+    # Committees
+    admin.add_view(
+        CommitteeView(
+            Committee,
+            db.session,
+            name="Committees",
+            endpoint="committee",
+            category="Committees",
+        )
     )
-)
-admin.add_view(
-    CommitteeMeetingView(
-        CommitteeMeeting,
-        db.session,
-        type="committee-meeting",
-        name="Committee Meetings",
-        endpoint="committee-meeting",
-        category="Committees",
-    )
-)
-admin.add_view(
-    CallForCommentView(
-        CallForComment,
-        db.session,
-        name="Calls for Comment",
-        endpoint="call-for-comment",
-        category="Committees",
-    )
-)
-admin.add_view(
-    CommitteeQuestionView(
-        CommitteeQuestion,
-        db.session,
-        name="Questions to Committees",
-        endpoint="committee-question",
-        category="Committees",
-    )
-)
-admin.add_view(
-    MinisterView(
-        Minister,
-        db.session,
-        name="Ministers",
-        endpoint="minister",
-        category="Committees",
-    )
-)
-admin.add_view(
-    QuestionReplyView(
-        QuestionReply,
-        db.session,
-        name="Old Questions & Replies",
-        endpoint="question",
-        category="Committees",
-    )
-)
-admin.add_view(
-    TabledCommitteeReportView(
-        TabledCommitteeReport,
-        db.session,
-        name="Tabled Committee Reports",
-        endpoint="tabled-committee-report",
-        category="Committees",
-    )
-)
 
-# ---------------------------------------------------------------------------------
-# Bills
-admin.add_view(BillsView(Bill, db.session, name="Bills", endpoint="bill"))
+    admin.add_view(
+        CommitteeMeetingView(
+            CommitteeMeeting,
+            db.session,
+            type="committee-meeting",
+            name="Committee Meetings",
+            endpoint="committee-meeting",
+            category="Committees",
+        )
+    )
+    admin.add_view(
+        CallForCommentView(
+            CallForComment,
+            db.session,
+            name="Calls for Comment",
+            endpoint="call-for-comment",
+            category="Committees",
+        )
+    )
+    admin.add_view(
+        CommitteeQuestionView(
+            CommitteeQuestion,
+            db.session,
+            name="Questions to Committees",
+            endpoint="committee-question",
+            category="Committees",
+        )
+    )
+    admin.add_view(
+        MinisterView(
+            Minister,
+            db.session,
+            name="Ministers",
+            endpoint="minister",
+            category="Committees",
+        )
+    )
+    admin.add_view(
+        QuestionReplyView(
+            QuestionReply,
+            db.session,
+            name="Old Questions & Replies",
+            endpoint="question",
+            category="Committees",
+        )
+    )
+    admin.add_view(
+        TabledCommitteeReportView(
+            TabledCommitteeReport,
+            db.session,
+            name="Tabled Committee Reports",
+            endpoint="tabled-committee-report",
+            category="Committees",
+        )
+    )
 
-# ---------------------------------------------------------------------------------
-# Other Content
-admin.add_view(
-    DailyScheduleView(
-        DailySchedule,
-        db.session,
-        name="Daily Schedules",
-        endpoint="schedule",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    FeaturedContentView(
-        Featured,
-        db.session,
-        name="Featured Content",
-        endpoint="featured",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    GazetteView(
-        Gazette,
-        db.session,
-        name="Gazettes",
-        endpoint="gazette",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    HansardView(
-        Hansard,
-        db.session,
-        type="plenary",
-        name="Hansards",
-        endpoint="hansard",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    PoliticalPartyView(
-        Party,
-        db.session,
-        name="Political Parties",
-        endpoint="party",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    ProvincialLegislatureView(
-        House,
-        db.session,
-        name="Provincial Legislatures",
-        endpoint="provincial-legislatures",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    BriefingView(
-        Briefing,
-        db.session,
-        type="media-briefing",
-        name="Media Briefings",
-        endpoint="briefing",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    RedirectView(
-        Redirect,
-        db.session,
-        category="Other Content",
-        name="Legacy Redirects",
-        endpoint="redirects",
-    )
-)
-admin.add_view(
-    PolicyDocumentView(
-        PolicyDocument,
-        db.session,
-        name="Policy Document",
-        endpoint="policy",
-        category="Other Content",
-    )
-)
-admin.add_view(
-    PageView(
-        Page,
-        db.session,
-        category="Other Content",
-        name="Static Pages",
-        endpoint="pages",
-    )
-)
-admin.add_view(
-    PostView(
-        Post, db.session, category="Other Content", name="Blog Posts", endpoint="posts"
-    )
-)
-admin.add_view(
-    FileView(
-        File,
-        db.session,
-        category="Other Content",
-        name="Uploaded Files",
-        endpoint="files",
-    )
-)
+    # ---------------------------------------------------------------------------------
+    # Bills
+    admin.add_view(BillsView(Bill, db.session, name="Bills", endpoint="bill"))
 
-# ---------------------------------------------------------------------------------
-# Email alerts
-admin.add_view(
-    EmailAlertView(category="Email Alerts", name="Send Emails", endpoint="alerts")
-)
-admin.add_view(
-    EmailTemplateView(
-        EmailTemplate,
-        db.session,
-        name="Email Templates",
-        category="Email Alerts",
-        endpoint="email-templates",
+    # ---------------------------------------------------------------------------------
+    # Other Content
+    admin.add_view(
+        DailyScheduleView(
+            DailySchedule,
+            db.session,
+            name="Daily Schedules",
+            endpoint="schedule",
+            category="Other Content",
+        )
     )
-)
-
-
-# ---------------------------------------------------------------------------------
-# Members
-admin.add_view(MemberView(Member, db.session, name="Members", endpoint="member"))
-admin.add_view(
-    CommitteeMeetingAttendanceView(
-        CommitteeMeetingAttendance,
-        db.session,
-        name="Committee Meeting Attendances",
-        endpoint="committeemeetingattendance",
-        category="Committees",
-    ),
-)
-
-# ---------------------------------------------------------------------------------
-# Reports
-admin.add_view(
-    ReportView(name="General reports", endpoint="reports", category="Reports")
-)
-admin.add_view(
-    UsageReportView(
-        name="User usage report", endpoint="usage_report", category="Reports"
+    admin.add_view(
+        FeaturedContentView(
+            Featured,
+            db.session,
+            name="Featured Content",
+            endpoint="featured",
+            category="Other Content",
+        )
     )
-)
-admin.add_view(
-    SubscriptionsView(category="Reports", name="Alert Counts", endpoint="subscriptions")
-)
+    admin.add_view(
+        GazetteView(
+            Gazette,
+            db.session,
+            name="Gazettes",
+            endpoint="gazette",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        HansardView(
+            Hansard,
+            db.session,
+            type="plenary",
+            name="Hansards",
+            endpoint="hansard",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        PoliticalPartyView(
+            Party,
+            db.session,
+            name="Political Parties",
+            endpoint="party",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        ProvincialLegislatureView(
+            House,
+            db.session,
+            name="Provincial Legislatures",
+            endpoint="provincial-legislatures",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        BriefingView(
+            Briefing,
+            db.session,
+            type="media-briefing",
+            name="Media Briefings",
+            endpoint="briefing",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        RedirectView(
+            Redirect,
+            db.session,
+            category="Other Content",
+            name="Legacy Redirects",
+            endpoint="redirects",
+        )
+    )
+    admin.add_view(
+        PolicyDocumentView(
+            PolicyDocument,
+            db.session,
+            name="Policy Document",
+            endpoint="policy",
+            category="Other Content",
+        )
+    )
+    admin.add_view(
+        PageView(
+            Page,
+            db.session,
+            category="Other Content",
+            name="Static Pages",
+            endpoint="pages",
+        )
+    )
+    admin.add_view(
+        PostView(
+            Post, db.session, category="Other Content", name="Blog Posts", endpoint="posts"
+        )
+    )
+    admin.add_view(
+        FileView(
+            File,
+            db.session,
+            category="Other Content",
+            name="Uploaded Files",
+            endpoint="files",
+        )
+    )
+
+    # ---------------------------------------------------------------------------------
+    # Email alerts
+    admin.add_view(
+        EmailAlertView(category="Email Alerts", name="Send Emails", endpoint="alerts")
+    )
+    admin.add_view(
+        EmailTemplateView(
+            EmailTemplate,
+            db.session,
+            name="Email Templates",
+            category="Email Alerts",
+            endpoint="email-templates",
+        )
+    )
+
+
+    # ---------------------------------------------------------------------------------
+    # Members
+    admin.add_view(MemberView(Member, db.session, name="Members", endpoint="member"))
+    admin.add_view(
+        CommitteeMeetingAttendanceView(
+            CommitteeMeetingAttendance,
+            db.session,
+            name="Committee Meeting Attendances",
+            endpoint="committeemeetingattendance",
+            category="Committees",
+        ),
+    )
+
+    # ---------------------------------------------------------------------------------
+    # Reports
+    admin.add_view(
+        ReportView(name="General reports", endpoint="reports", category="Reports")
+    )
+    admin.add_view(
+        UsageReportView(
+            name="User usage report", endpoint="usage_report", category="Reports"
+        )
+    )
+    admin.add_view(
+        SubscriptionsView(category="Reports", name="Alert Counts", endpoint="subscriptions")
+    )
+
+    # ---------------------------------------------------------------------------------
+    # Petitions
+    admin.add_view(
+        PetitionView(
+            Petition,
+            db.session,
+            name="Petitions",
+            endpoint="petition",
+            category="Other Content",  
+        )
+    )
+
+    admin.add_view(
+        PetitionStatusView(
+            PetitionStatus,
+            db.session,
+            name="Petition Statuses",
+            endpoint="petition-status",
+            category="Other Content",
+        )
+    )
+
+
+
+
+    

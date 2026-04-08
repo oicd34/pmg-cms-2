@@ -3,6 +3,9 @@ from flask_security import current_user
 from sqlalchemy import desc
 from sqlalchemy.orm import defer, noload
 from sqlalchemy.sql.expression import nullslast
+from pmg.bill_tracker import produce_bill_tracker_json
+from pmg import app
+import requests
 
 from pmg import cache, cache_key, should_skip_cache
 from pmg.models import (
@@ -249,3 +252,25 @@ def daily_schedules(id=None):
         return api_get_item(id, DailySchedule, DailyScheduleSchema)
     else:
         return api_list_items(DailySchedule.list(), DailyScheduleSchema)
+
+
+@api.route("/bill-tracker/")
+def bill_tracker():
+    try:
+        with open("pmg/static/bill-tracker.json", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return abort(500)
+
+
+@api.route("/bill-tracker/update/")
+def bill_tracker_update():
+    produce_bill_tracker_json()
+    return "/v2/bill-tracker JSON updated"
+
+
+@api.route("/elasticsearch-health")
+def elasticsearch_health():
+    r = requests.get("%s/_cluster/health?pretty=true" % app.config["ES_SERVER"])
+    r.raise_for_status()
+    return r.json()

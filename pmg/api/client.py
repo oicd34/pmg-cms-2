@@ -62,7 +62,7 @@ def load_from_api(
     params=None,
     pagesize=None,
 ):
-    """ Load data from the PMG API.
+    """Load data from the PMG API.
 
     :param str resource_name: resource to load (used as the start of the URL), or a full URL
     :param int resource_id: resource id (optional), appended to the resource name
@@ -97,6 +97,8 @@ def load_from_api(
     headers = {
         "Host": API_HOST,
     }
+
+    logger.debug("Headers: %s" % headers)
 
     # add auth header
     if current_user.is_authenticated:
@@ -137,7 +139,7 @@ def load_from_api(
         return out
     except urllib3.exceptions.HTTPError as e:
         logger.error("Error connecting to backend service: %s" % e, exc_info=e)
-        flash(u"Error connecting to backend service.", "danger")
+        flash("Error connecting to backend service.", "danger")
         raise e
 
 

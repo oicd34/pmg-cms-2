@@ -1,6 +1,6 @@
 $icon-font-path:    "../../bower_components/bootstrap-sass/assets/fonts/";
 
-$black = #333;
+$black: #333;
 
 // ** Global textual link color.
 $link-color:            #0178d8;
@@ -852,6 +852,18 @@ mark {
     }
   }
 
+  .bill-location.concourt {
+    border-color: #fcec56;
+
+    .panel-heading {
+      border-color: #fcec56;
+      background-color: #fcec56;
+    }
+  }
+
+
+  
+
   .media-body {
     li {
       display: table;
@@ -1291,6 +1303,7 @@ header.detail-page-header {
     li {
       a {
         cursor:pointer;
+        padding: 10px 10px;
       }
 
       &.active {
@@ -2088,4 +2101,148 @@ ul.menu {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+
+.renamed-committee-links {
+  margin: 2em 0;
+}
+
+
+// Petitions Home
+
+.petitions-tiles {
+  margin-top: 2em;
+
+  .thumbnail,
+  .thumbnail:hover {
+    text-decoration: none;
+  }
+
+  h3 {
+    margin-top: 0px;
+  }
+}
+
+// Petitions list page
+
+.petitions-title {
+  padding-left: 1em;
+}
+
+.petitions-list-page {
+
+  table td {
+    padding: 8px 5px !important; 
+    vertical-align: middle !important;
+  }
+  
+
+  .petition-badge {
+    display: inline-block;
+    padding: 5px;
+    margin: 0 0 0;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 12px;
+    background-color: #6998DD;
+
+  }
+ 
+}
+
+
+// Petition detail page
+.petition-detail-page {
+
+  .petition-header {
+    margin-bottom:20px;
+  }
+
+  h1 {
+   
+    margin-bottom: 20px;
+  }
+
+ 
+
+  .petition-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 5px 0 0 0;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 12px;
+    background-color: #5bc0de;
+    font-weight: bold;
+
+  }
+
+  .petition-description-section {
+    font-size: 18px;
+  }
+
+  .petition-info {
+    background: $grey-light;
+    padding: 20px;
+    border-radius: 5px;
+    font-size: 14px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+
+    dt {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+  }
+
+  .petition-meetings-section {
+    margin-top: 10px;
+   
+    h2 {
+      background-color: #6495ed;
+      padding: 10px 5px;
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 0;
+      border-radius: 5px 5px 0 0;
+    }
+    .meetings-list {
+      border: 1px solid #6495ed;
+      border-radius: 0 0 5px 5px;
+    }
+    
+  }
+
+  .petition-hansards-section {
+    margin-top: 10px;
+   
+    h2 {
+      background-color: #f7c923;
+      padding: 10px 5px;
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 0;
+      border-radius: 5px 5px 0 0;
+    }
+    .hansards-list {
+      border: 1px solid #f7c923;
+      border-radius: 0 0 5px 5px;
+    }
+  }
+
+  .meeting-item, .hansard-item {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .meeting-details a, .hansard-details a {
+      font-size: 18px;
+      display: block;
+      margin-bottom: 5px;
+    }
+  }
 }

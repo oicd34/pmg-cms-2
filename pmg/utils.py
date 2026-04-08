@@ -4,7 +4,9 @@ import nltk
 from universal_analytics import Tracker, HTTPRequest
 from flask import request
 from flask_security import current_user
-
+import requests
+import json
+from sentry_sdk import capture_message
 
 # Useragents that are bots
 BOTS_RE = re.compile("(bot|spider|cloudfront|slurp)", re.I)
@@ -29,10 +31,10 @@ def levenshtein(first, second, transpositions=False):
 
 
 def track_pageview(path=None, ignore_bots=True):
-    """ User Google Analytics to track this pageview. """
+    """User Google Analytics to track this pageview."""
     from pmg import app
 
-    ga_id = app.config.get("GOOGLE_ANALYTICS_ID")
+    ga_id = app.config["GOOGLE_ANALYTICS_ID"]
     if not ga_id:
         return False
 
@@ -61,9 +63,46 @@ def track_pageview(path=None, ignore_bots=True):
     return True
 
 
+def track_file_download():
+    from pmg import app
+
+    ga_url = "https://www.google-analytics.com/mp/collect"
+    ga_id = app.config.get("GOOGLE_ANALYTICS_ID")
+    api_secret = app.config.get("GOOGLE_ANALYTICS_API_SECRET")
+    client_id = "server"
+
+    path = request.path
+    last_slash_index = path.rfind("/")
+    file_dir = path[:last_slash_index]
+    page_location = f"{request.url_root}{file_dir[1:]}"
+
+    url = f"{ga_url}?measurement_id={ga_id}&api_secret={api_secret}"
+    payload = {
+        "client_id": client_id,
+        "non_personalized_ads": "false",
+        "events": [
+            {
+                "name": "file_download",
+                "params": {
+                    "file_extension": path.split(".")[-1],
+                    "file_name": path,
+                    "link_url": request.url,
+                    "page_location": page_location,
+                    "page_referrer": f"{request.referrer}",
+                    "server_source": "Python"
+                },
+            }
+        ],
+    }
+    response = requests.post(url, data=json.dumps(payload), verify=True)
+    payload["status_code"] = response.status_code
+    #capture_message(f"File download: {path}", payload)
+
+    return True
+
+
 def externalise_url(url):
-    """ Externalise a URL based on the request scheme and host.
-    """
+    """Externalise a URL based on the request scheme and host."""
     from pmg import app
 
     if url.startswith("http"):

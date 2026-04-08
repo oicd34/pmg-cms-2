@@ -49,13 +49,13 @@ If you want to contribute to the code, please fork the repository, make your cha
 ### Local setup
 Build the necessary services:
 
-    docker-compose build
+    docker compose build
 
 Setup the database:
 
-    docker-compose run --rm web python setup_dev_database.py
-    docker-compose run --rm web python app.py db stamp head
-    docker-compose run --rm web python bin/search.py --reindex all
+    docker compose run web python setup_dev_database.py
+    docker compose run web python app.py db stamp head
+    docker compose run web python bin/search.py --reindex all
 
 Add the following lines to your .hosts file:
 
@@ -64,7 +64,7 @@ Add the following lines to your .hosts file:
 
 Start the server:
 
-    docker-compose up
+    docker compose up
 
 You should now see it running at [http://pmg.test:5000/](http://pmg.test:5000/) and [http://api.pmg.test:5000/](http://api.pmg.test:5000/).
 
@@ -75,16 +75,16 @@ You can login with:
 
 Each time you pull in changes that might contain database changes:
 
-    docker-compose run --rm web python app.py db migrate
-    docker-compose run --rm web python app.py db upgrade
+    docker compose run web python app.py db migrate
+    docker compose run web python app.py db upgrade
 
 To delete the database for a completely fresh setup, run:
 
-    docker-compose down --volumes
+    docker compose down --volumes
 
 To start the task scheduler, run:
 
-    docker-compose run --rm web python app.py start_scheduler
+    docker compose run web python app.py start_scheduler
 
 ### Developing email features
 
@@ -98,7 +98,7 @@ source env.localmail
 
 ### Running tests
 
-    docker-compose -f docker-compose.yml -f docker-compose-test.yml run --rm web nosetests tests --exe -v
+    docker compose -f docker-compose.yml -f docker-compose-test.yml run --rm web nosetests tests --exe -v
 
 ### Code formatting
 
@@ -110,39 +110,15 @@ We use [Black](https://github.com/psf/black) to format our code. You can install
 
 ### Deployment instructions
 
-Deployment is to dokku, a Heroku-like environment. To deploy, simply push to the git remote:
+Deployment is to dokku, a Heroku-like environment. PMG now runs on two servers with an AWS Application Load Balancer.
 
-    git push dokku
+    git remote add dokku-prod-2 dokku@pmg-aws2.pmg.org.za:pmg-prod
+    git remote add dokku-prod-3 dokku@pmg-aws3.pmg.org.za:pmg-prod
 
-Sensitive or environment-specific configuration variables are set as environment variables using `dokku config:set`, the important ones are:
+To deploy push to one server, wait for it to complete, then push to the other server:
 
-* SERVER_NAME - Flask uses this as the base hostname and port for the server - Flask Blueprint subdomains base from this. If it can't match the Host header in requests to this, it serves a 404 response.
-  - `pmg.org.za` in production
-  - `pmg.test:5000` in development
-  - Flask seems to use this for generating absolute URLs, except when the `X-Forwarded-Host` header is provided, in which case that hostname is used for absolute URLs.
-* FRONTEND_HOST - It's not currently clear if this is used anywhere
-  - `https://pmg.org.za/` in production
-  - `http://pmg.test:5000/` in development
-* SESSION_COOKIE_DOMAIN
-  - `pmg.org.za` in production
-  - `pmg.test` in dev
-* SQLALCHEMY_DATABASE_URI
-* FLASK_ENV=production
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
-* SENDGRID_API_KEY
-* MAIL_PASSWORD
-* SECURITY_PASSWORD_SALT
-* RUN_PERIODIC_TASKS=true
-* SOUNDCLOUD_APP_KEY_ID
-* SOUNDCLOUD_APP_KEY_SECRET
-* SOUNDCLOUD_USERNAME
-* SOUNDCLOUD_PASSWORD
-* SOUNDCLOUD_PERIOD_HOURS=6
-* MAX_SOUNDCLOUD_BATCH=10
-* S3_BUCKET=pmg-assets
-* STATIC_HOST=https://static.pmg.org.za/ or http://pmg-assets.s3-website-eu-west-1.amazonaws.com/
-
+    git push dokku-prod-2
+    git push dokku-prod-3
 
 ### Reindexing for Search
 

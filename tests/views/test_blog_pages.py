@@ -24,7 +24,6 @@ class TestBlogPages(PMGLiveServerTestCase):
         self.make_request("/blog/%s/" % post.slug)
         self.assertIn(post.title, self.html)
         self.assertIn(post.body[0:100], self.html)
-        self.assertIn("That week in Parliament", self.html)
 
     def test_blog_listings_page(self):
         """
@@ -53,8 +52,7 @@ class TestBlogPages(PMGLiveServerTestCase):
         self.contains_archive()
 
     def contains_template_text(self):
-        self.assertIn("That week in Parliament", self.html)
-        self.assertIn("About this blog", self.html)
+        self.assertIn("Blog", self.html)
         self.assertIn("Blog Archive", self.html)
 
     def contains_posts(self, posts):

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}6th Parliament Review | PMG{% endblock %}
+
+{% block page %}
+<link rel="stylesheet" href="/static/resources/css/pr6.css">
+
+
+<div class="pr6-section">
+
+    <div class="header">
+        <div class="header-container">
+            <div class="header-content">
+                <a href="/6th-parliament-review"><img class="pr6-title" src="/static/resources/images/pr6/title.png" alt="6th Parliament Review Logo" /></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="pr6-page-container">
+            <div class="row">
+                <div class="col-md-9 col-md-push-3">
+                    <article class="full-article">
+
+                        <div class="pr6-design-element pr6-design-element2">
+                            <img src="/static/resources/images/pr6/pr6-design2.png" />
+                        </div>
+
+                        {% if section == 'articles' %}
+                            {% set article_templates = {
+                                'overview': 'pr6/articles/overview.html',
+                                'martin-nicol': 'pr6/articles/martin-nicol.html',
+                                'judith-february': 'pr6/articles/judith-february.html',
+                                'ben-cronin': 'pr6/articles/ben-cronin.html',
+                                'michael-atkins': 'pr6/articles/michael-atkins.html',
+                                'pam-saxby': 'pr6/articles/pam-saxby.html',
+                                'devi-pillay': 'pr6/articles/devi-pillay.html',
+                                'kevin-deveaux': 'pr6/articles/kevin-deveaux.html',
+                                'hugh-corder': 'pr6/articles/hugh-corder.html',
+                                'fazela-mohamed': 'pr6/articles/fazela-mohamed.html',
+                                'legacy-reports': 'pr6/articles/legacy-reports.html',
+                                'state-capture': 'pr6/articles/state-capture.html'
+                            } %}
+                            
+                            {% if article in article_templates %}
+                                {% include article_templates[article] %}
+                            {% else %}
+                                {% include 'pr6/_404.html' %}
+                            {% endif %}
+                        
+                        
+                        {% elif section == 'interviews' %}
+                            {% set interview_templates = {
+                                'brett-herron': 'pr6/interviews/interview-brett-herron.html',
+                                'ff-plus': 'pr6/interviews/interview-ff-plus.html',
+                                'ganief-hendricks': 'pr6/interviews/interview-ganief-hendricks.html',
+                                'jane-mananiso': 'pr6/interviews/interview-jane-mananiso.html',
+                                'marie-sukers': 'pr6/interviews/interview-marie-sukers.html',
+                                'seiso-mohai': 'pr6/interviews/interview-seiso-mohai.html',
+                                'shaik-emam': 'pr6/interviews/interview-shaik-emam.html',
+                                'vuyo-zungula': 'pr6/interviews/interview-zungula.html',
+                                'wynand-boshoff': 'pr6/interviews/interview-wynand-boshoff.html',
+                                'tamarin-breedt': 'pr6/interviews/interview-tamarin-breedt.html',
+                                'siviwe-gwarube': 'pr6/interviews/interview-siviwe-gwarube.html',
+                                'masibulele-xaso': 'pr6/interviews/interview-masibulele-xaso.html'
+
+                            } %}
+                            
+                            {% if article in interview_templates %}
+                                {% include interview_templates[article] %}
+                            {% else %}
+                                {% include 'pr6/_404.html' %}
+                            {% endif %}
+
+                        {% elif section == 'statistics' %}
+                            {% set statistics_templates = {
+                                'written-questions': 'pr6/statistics/written-questions.html',
+                                'plenary-sessions': 'pr6/statistics/plenary-sessions.html',
+                                'committee-activities': 'pr6/statistics/committee-activities.html',
+                                'turnover': 'pr6/statistics/turnover.html',
+                                'attendance': 'pr6/statistics/attendance.html',
+                                'legislation': 'pr6/statistics/bills.html',
+                                
+                            } %}
+                            
+                            {% if article in statistics_templates %}
+                                {% include statistics_templates[article] %}
+                            {% else %}
+                                {% include 'pr6/_404.html' %}
+                            {% endif %}
+
+                        {% endif %}
+
+
+                    </article>
+                </div>
+                <div class="col-md-3 col-md-pull-9">
+                    {%include 'pr6/_sidebar.html'%}
+                </div>
+
+                
+
+            </div>
+
+
+           
+            
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var body = document.querySelector('body');
+      
+        body.addEventListener('mouseover', function(event) {
+          var target = event.target;
+          if (target.tagName.toLowerCase() === 'sup') {
+            var fn = target.dataset.fn;
+            var fnTextElement = document.querySelector('.footnote[data-fn="' + fn + '"]');
+            if (fnTextElement) {
+              var fnText = fnTextElement.innerHTML;
+              var fnHtml = '<div class="fn">' + fnText + '</div>';
+              var existingFn = target.querySelector('.fn');
+              if (existingFn) {
+                existingFn.remove();
+              }
+              target.insertAdjacentHTML('beforeend', fnHtml);
+            }
+          }
+        });
+      
+        body.addEventListener('mouseout', function(event) {
+          var target = event.target;
+          if (target.tagName.toLowerCase() === 'sup') {
+            var existingFn = target.querySelector('.fn');
+            if (existingFn) {
+              existingFn.remove();
+            }
+          }
+        });
+      });
+</script>
+
+
+
+
+{% endblock %}

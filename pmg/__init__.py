@@ -3,11 +3,12 @@ import logging.config
 import os
 
 from flask import Flask
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from flask_mail import Mail
+from flask_mail import Mail, email_dispatched
 from flask_marshmallow import Marshmallow
 
 import sentry_sdk
@@ -19,9 +20,15 @@ env = os.environ.get("FLASK_ENV", "development")
 
 SENTRY_DSN = os.environ.get("SENTRY_DSN", None)
 if SENTRY_DSN:
-    sentry_sdk.init(dsn=SENTRY_DSN, integrations=[FlaskIntegration()])
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=os.environ.get("SENTRY_TRACES_SAMPLE_RATE", 0.5),
+        profiles_sample_rate=os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", 1),
+        integrations=[FlaskIntegration()],
+    )
 
 app = Flask(__name__, static_folder="static")
+CORS(app)
 app.config.from_pyfile("../config/config.py")
 
 # setup logging
@@ -37,13 +44,14 @@ logger = logging.getLogger(__name__)
 if app.config["DEBUG"] and not app.config["DEBUG_CACHE"]:
     cache_type = "null"
 else:
-    cache_type = "filesystem"
+    cache_type = "RedisCache"
+
 
 cache = Cache(
     app,
     config={
         "CACHE_TYPE": cache_type,
-        "CACHE_DIR": "/tmp/pmg-cache",
+        "CACHE_REDIS_URL": app.config["CACHE_REDIS_URL"],
         "CACHE_DEFAULT_TIMEOUT": 60 * 60,
     },
 )
@@ -92,12 +100,6 @@ original_send = mail.send
 def send_email_with_sendgrid(message):
     extra_headers = {
         "filters": {
-            # "templates": {
-            #     "settings": {
-            #         "enable": "1",
-            #         "template_id": app.config["SENDGRID_TRANSACTIONAL_TEMPLATE_ID"],
-            #     }
-            # },
             "ganalytics": {
                 "settings": {
                     "enable": "1",
@@ -111,6 +113,12 @@ def send_email_with_sendgrid(message):
     message.extra_headers = {"X-SMTPAPI": json.dumps(extra_headers)}
     original_send(message)
 
+
+def log_mail_message(message, app):
+    if app.config["MAIL_SUPPRESS_SEND"] == True:
+        app.logger.debug(message)
+
+email_dispatched.connect(log_mail_message)
 
 app.extensions.get("mail").send = send_email_with_sendgrid
 

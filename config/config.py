@@ -7,12 +7,15 @@ DEBUG = env.get("FLASK_ENV", "development") != "production"
 TEST = env.get("FLASK_ENV") == "test"
 
 DEBUG_CACHE = env.get("FLASK_DEBUG_CACHE", "false") == "true"
+CACHE_REDIS_URL = env.get("REDIS_URL", "redis://redis:6379/0")
 
 RUN_PERIODIC_TASKS = env.get("RUN_PERIODIC_TASKS") == "true"
 
 WTF_CSRF_ENABLED = False if TEST else True
 SECRET_KEY = env.get("FLASK_SECRET_KEY", "NSTHNSTHaoensutCGSRCGnsthoesucgsrSNTH")
-GOOGLE_ANALYTICS_ID = "UA-10305579-1"
+GOOGLE_ANALYTICS_ID = env.get("GOOGLE_ANALYTICS_ID", None)
+GOOGLE_ANALYTICS_API_SECRET = env.get("GOOGLE_ANALYTICS_API_SECRET", None)
+GOOGLE_TAG_MANAGER_ID = env.get("GOOGLE_TAG_MANAGER_ID", None)
 
 SQLALCHEMY_DATABASE_URI = env.get(
     "SQLALCHEMY_DATABASE_URI",
@@ -98,6 +101,7 @@ SENDGRID_API_KEY = env.get("SENDGRID_API_KEY")
 SENDGRID_TRANSACTIONAL_TEMPLATE_ID = "2ef9656f-db37-4072-9ed8-449368b73617"
 
 # Flask-Mail
+MAIL_SUPPRESS_SEND = env.get("MAIL_SUPPRESS_SEND", "true") == "true"
 MAIL_SERVER = env.get("MAIL_SERVER", "smtp.sendgrid.com")
 MAIL_PORT = int(env.get("MAIL_PORT", "465"))
 MAIL_USE_SSL = env.get("MAIL_USE_SSL", "true") == "true"
@@ -141,5 +145,4 @@ SECURITY_TRACKABLE = True
 SECURITY_CHANGEABLE = True
 
 SERVER_NAME = env.get("SERVER_NAME", "pmg.test:5000")
-FRONTEND_HOST = env.get("FRONTEND_HOST", "http://pmg.test:5000/")
 SESSION_COOKIE_DOMAIN = env.get("SESSION_COOKIE_DOMAIN", "pmg.test")
